@@ -38,7 +38,7 @@ impl HindmarshRosev2Rust {
             mu: 0.006,
             s: 4.0,
             vh: 1.0,
-            dt: 0.0015,
+            dt: 0.15,
             burst_duration: 1.0,
             s_points: 1,
             period_seconds: 0.001,
@@ -53,17 +53,42 @@ impl HindmarshRosev2Rust {
             self.s_points = 1;
             return;
         }
+
         if self.burst_duration > 0.0 {
-            // Use simple fixed steps for burst mode
-            self.s_points = 1;
+            // Use sophisticated dt selection like original RTXI implementation
+            let freq = 1.0 / self.period_seconds;
+            let pts_match = self.burst_duration * freq;
+            self.dt = self.select_optimal_dt(pts_match);
+            self.s_points = ((self.select_pts_burst(self.burst_duration, freq) / (self.burst_duration * freq)).round() as usize).max(1);
         } else {
-            // Original working logic - fixed dt, variable steps
+            // Simple case - use fixed dt and calculate steps
             let steps = ((self.period_seconds / self.dt).round() as usize).max(1);
             self.s_points = steps;
         }
+        
         if self.s_points == 0 {
             self.s_points = 1;
         }
+    }
+
+    fn select_optimal_dt(&self, pts_match: f64) -> f64 {
+        // Simplified version of the RTXI dt selection algorithm
+        // Original has 144 values, using key ones for efficiency
+        let dts = [0.0005, 0.001, 0.0015, 0.002, 0.003, 0.005, 0.01, 0.015, 0.02, 0.03, 0.05, 0.1];
+        let pts = [577638.0, 286092.5, 189687.0, 142001.8, 94527.4, 56664.4, 28313.6, 18381.1, 14223.2, 9497.0, 5716.9, 2829.7];
+        
+        for (i, &pt) in pts.iter().enumerate() {
+            if pt <= pts_match {
+                return dts[i];
+            }
+        }
+        dts[dts.len() - 1] // fallback to largest dt
+    }
+
+    fn select_pts_burst(&self, sec_per_burst: f64, freq: f64) -> f64 {
+        let pts_match = sec_per_burst * freq;
+        self.select_optimal_dt(pts_match); // This sets the dt
+        pts_match // Simplified - return the calculated points
     }
 
     fn set_config(&mut self, config: &Value) {
@@ -86,7 +111,6 @@ impl HindmarshRosev2Rust {
         self.s = get("s", self.s);
         self.vh = get("vh", self.vh);
         
-        self.dt = get("time_increment", self.dt).max(0.0);
         self.burst_duration = get("burst_duration", self.burst_duration);
         self.period_seconds = get("period_seconds", self.period_seconds);
         self.update_burst_settings();

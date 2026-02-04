@@ -51,9 +51,5 @@ name = "vh"
 default = 1.0
 
 [[variables]]
-name = "time_increment"
-default = 0.0015
-
-[[variables]]
 name = "burst_duration"
 default = 1.0
