@@ -19,7 +19,6 @@ struct HindmarshRosev2Rust {
     burst_duration: f64,
     s_points: usize,
     period_seconds: f64,
-    max_integration_steps: usize, // Maximum steps per tick for real-time performance
     cfg_x: f64,
     cfg_y: f64,
     cfg_z: f64,
@@ -43,7 +42,6 @@ impl HindmarshRosev2Rust {
             burst_duration: 1.0,
             s_points: 1,
             period_seconds: 0.001,
-            max_integration_steps: 10, // Default reasonable limit
             cfg_x: x,
             cfg_y: y,
             cfg_z: z,
@@ -55,27 +53,14 @@ impl HindmarshRosev2Rust {
             self.s_points = 1;
             return;
         }
-
-        // For real-time performance, limit integration steps regardless of frequency
-        // This maintains consistent computational load per tick
         if self.burst_duration > 0.0 {
-            // Use a fixed number of steps for burst mode to ensure consistent performance
+            // Use simple fixed steps for burst mode
             self.s_points = 1;
         } else {
-            // Limit steps to maintain real-time performance
-            // Use adaptive dt instead of increasing steps
-            let max_steps = self.max_integration_steps; // Use configurable limit
-            let desired_steps = (self.period_seconds / self.dt).round().max(1.0) as usize;
-
-            if desired_steps > max_steps {
-                // Adapt dt to maintain step count instead of increasing steps
-                self.dt = self.period_seconds / max_steps as f64;
-                self.s_points = max_steps;
-            } else {
-                self.s_points = desired_steps;
-            }
+            // Original working logic - fixed dt, variable steps
+            let steps = ((self.period_seconds / self.dt).round() as usize).max(1);
+            self.s_points = steps;
         }
-
         if self.s_points == 0 {
             self.s_points = 1;
         }
@@ -100,17 +85,17 @@ impl HindmarshRosev2Rust {
         self.mu = get("mu", self.mu);
         self.s = get("s", self.s);
         self.vh = get("vh", self.vh);
+        
         self.dt = get("time_increment", self.dt).max(0.0);
         self.burst_duration = get("burst_duration", self.burst_duration);
-        self.max_integration_steps =
-            get("max_integration_steps", self.max_integration_steps as f64) as usize;
+        self.period_seconds = get("period_seconds", self.period_seconds);
         self.update_burst_settings();
     }
 
     fn process(&mut self) {
         let dt = self.dt;
-        // Use the configured maximum steps for consistent real-time performance
-        let steps = self.s_points.min(self.max_integration_steps).max(1);
+        // Original working logic - simple step limiting
+        let steps = self.s_points.min(10_000).max(1);
 
         for _ in 0..steps {
             let mut vars = [self.x, self.y, self.z];
@@ -121,11 +106,10 @@ impl HindmarshRosev2Rust {
                 let x = vars[0];
                 let y = vars[1];
                 let z = vars[2];
-                let v =
-                    y + 3.0 * (x * x) - (x * x * x) - params.vh * z + params.e - params.input_syn;
+                let xdot = y + 3.0 * (x * x) - (x * x * x) - params.vh * z + params.e - params.input_syn;
                 let ydot = 1.0 - 5.0 * (x * x) - y;
                 let zdot = params.mu * (-params.vh * z + params.s * (x + 1.6));
-                [v, ydot, zdot]
+                [xdot, ydot, zdot]
             };
 
             let r0 = f(vars, self);
@@ -241,10 +225,14 @@ extern "C" fn process(handle: *mut c_void, _tick: u64, period_seconds: f64) {
         return;
     }
     let instance = unsafe { &mut *(handle as *mut HindmarshRosev2Rust) };
+    
+    // ALWAYS use the period_seconds from runtime, not from config
+    // This ensures the plugin respects workspace period settings
     if (instance.period_seconds - period_seconds).abs() > f64::EPSILON {
         instance.period_seconds = period_seconds;
         instance.update_burst_settings();
     }
+    
     instance.process();
 }
 
