@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rtsyn_plugin = { git = "https://github.com/rtsyn-dev/rtsyn-plugin" }
+# rtsyn_plugin = { git = "https://github.com/rtsyn-dev/rtsyn-plugin" }
+rtsyn_plugin = { path = "../../rtsyn-plugin" }
 serde_json = "1"
 
 [lib]
