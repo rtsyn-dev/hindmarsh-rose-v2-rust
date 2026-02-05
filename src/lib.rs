@@ -215,7 +215,6 @@ extern "C" fn meta_json(_handle: *mut c_void) -> PluginString {
             ["mu", 0.006],
             ["s", 4.0],
             ["vh", 1.0],
-            ["dt", 0.15],
             ["burst_duration", 1.0]
         ]
     });
