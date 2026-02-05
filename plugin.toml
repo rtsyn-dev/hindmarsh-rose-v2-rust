@@ -2,54 +2,5 @@ name = "Hindmarsh Rose v2 Rust"
 kind = "hindmarsh_rose_v2_rust"
 version = "0.1.0"
 description = "Hindmarsh-Rose v2 plugin in rust."
-supports_start_stop = true
-supports_restart = true
 library = "libhindmarsh-rose-rust.so"
-extendable_inputs = false
-auto_extend_inputs = false
-connection_dependent = false
-loads_started = true
 
-[[inputs]]
-name = "i_syn"
-
-[[outputs]]
-name = "x"
-
-[[outputs]]
-name = "y"
-
-[[outputs]]
-name = "z"
-
-[[variables]]
-name = "x"
-default = -0.9013
-
-[[variables]]
-name = "y"
-default = -3.1594
-
-[[variables]]
-name = "z"
-default = 3.2478
-
-[[variables]]
-name = "e"
-default = 3.25
-
-[[variables]]
-name = "mu"
-default = 0.006
-
-[[variables]]
-name = "s"
-default = 4.0
-
-[[variables]]
-name = "vh"
-default = 1.0
-
-[[variables]]
-name = "burst_duration"
-default = 1.0

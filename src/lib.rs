@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::ffi::c_void;
 
 const INPUTS: &[&str] = &["i_syn"];
-const OUTPUTS: &[&str] = &["x", "y", "z"];
+const OUTPUTS: &[&str] = &["Membrane potential (V)", "Membrane potential (mV)"];
 
 #[derive(Debug)]
 struct HindmarshRosev2Rust {
@@ -206,8 +206,18 @@ extern "C" fn destroy(handle: *mut c_void) {
 
 extern "C" fn meta_json(_handle: *mut c_void) -> PluginString {
     let value = serde_json::json!({
-        "name": "Hindmarsh Rose Dyn Rust",
-        "kind": "hindmarsh_rose_dyn_rs"
+        "name": "Hindmarsh Rose v2 Rust",
+        "default_vars": [
+            ["x", -0.9013],
+            ["y", -3.1594],
+            ["z", 3.24782],
+            ["e", 3.0],
+            ["mu", 0.006],
+            ["s", 4.0],
+            ["vh", 1.0],
+            ["dt", 0.15],
+            ["burst_duration", 1.0]
+        ]
     });
     PluginString::from_string(value.to_string())
 }
@@ -218,6 +228,25 @@ extern "C" fn inputs_json(_handle: *mut c_void) -> PluginString {
 
 extern "C" fn outputs_json(_handle: *mut c_void) -> PluginString {
     PluginString::from_string(serde_json::to_string(OUTPUTS).unwrap_or_default())
+}
+
+extern "C" fn behavior_json(_handle: *mut c_void) -> PluginString {
+    let behavior = serde_json::json!({
+        "supports_start_stop": true,
+        "supports_restart": true,
+        "extendable_inputs": {"type": "none"},
+        "loads_started": true
+    });
+    PluginString::from_string(behavior.to_string())
+}
+
+extern "C" fn ui_schema_json(_handle: *mut c_void) -> PluginString {
+    let schema = serde_json::json!({
+        "outputs": ["Membrane potential (V)", "Membrane potential (mV)"],
+        "inputs": ["i_syn"],
+        "variables": ["x", "y", "z"]
+    });
+    PluginString::from_string(schema.to_string())
 }
 
 extern "C" fn set_config_json(handle: *mut c_void, data: *const u8, len: usize) {
@@ -271,6 +300,8 @@ extern "C" fn get_output(handle: *mut c_void, name: *const u8, len: usize) -> f6
             "x" => instance.x,
             "y" => instance.y,
             "z" => instance.z,
+            "Membrane potential (V)" => instance.x,
+            "Membrane potential (mV)" => instance.x * 1000.0,
             _ => 0.0,
         };
     }
@@ -285,6 +316,8 @@ pub extern "C" fn rtsyn_plugin_api() -> *const PluginApi {
         meta_json,
         inputs_json,
         outputs_json,
+        behavior_json: Some(behavior_json),
+        ui_schema_json: Some(ui_schema_json),
         set_config_json,
         set_input,
         process,
